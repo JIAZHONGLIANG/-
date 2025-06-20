@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>天气预警信息</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        warning: {
+                            red: '#FF3B30',
+                            orange: '#FF9500',
+                            yellow: '#FFCC00',
+                            blue: '#5AC8FA',
+                            default: '#8E8E93'
+                        },
+                        emergency: {
+                            flood: '#165DFF',
+                            drought: '#F7BA1E',
+                            typhoon: '#5B8FF9',
+                            cold: '#6B778C',
+                            heat: '#F53F3F',
+                            fog: '#86909C',
+                            haze: '#949494',
+                            wind: '#4E5969',
+                            storm: '#36CFC9',
+                            wave: '#13C2C2',
+                            tsunami: '#0FC6C2',
+                            geology: '#722ED1',
+                            fire: '#F759AB',
+                            earthquake: '#F04864',
+                            rescue: '#7CB305'
+                        }
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .warning-card {
+                @apply rounded-xl p-4 shadow-md transition-all duration-300 hover:shadow-lg;
+            }
+            .emergency-badge {
+                @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+            }
+            .warning-level-badge {
+                @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ml-2;
+            }
+            .fade-in {
+                animation: fadeIn 0.5s ease-in-out;
+            }
+            @keyframes fadeIn {
+                0% { opacity: 0; transform: translateY(10px); }
+                100% { opacity: 1; transform: translateY(0); }
+            }
+        }
+    </style>
+</head>
+<body class="font-inter bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- 顶部导航栏 -->
+        <header class="flex justify-between items-center mb-8">
+            <div class="flex items-center">
+                <i class="fa fa-bolt text-warning-red text-2xl mr-3"></i>
+                <h1 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-gray-800">天气预警信息</h1>
+            </div>
+            <button id="settingsBtn" class="flex items-center bg-white p-2 rounded-full shadow-md hover:shadow-lg transition-all duration-300">
+                <i class="fa fa-cog text-gray-600 text-xl"></i>
+            </button>
+        </header>
+
+        <!-- 日期显示 -->
+        <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+            <p class="text-lg font-medium text-gray-700">
+                <i class="fa fa-calendar text-gray-500 mr-2"></i>
+                <span id="currentDate">加载中...</span>
+            </p>
+        </div>
+
+        <!-- 预警统计 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div class="bg-white rounded-xl shadow-sm p-4 flex items-center">
+                <div class="w-12 h-12 rounded-full bg-warning-red/10 flex items-center justify-center mr-4">
+                    <i class="fa fa-exclamation-triangle text-warning-red text-xl"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">红色预警</p>
+                    <p class="text-2xl font-bold text-gray-800" id="redCount">0</p>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-4 flex items-center">
+                <div class="w-12 h-12 rounded-full bg-warning-orange/10 flex items-center justify-center mr-4">
+                    <i class="fa fa-exclamation-circle text-warning-orange text-xl"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">橙色预警</p>
+                    <p class="text-2xl font-bold text-gray-800" id="orangeCount">0</p>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-4 flex items-center">
+                <div class="w-12 h-12 rounded-full bg-warning-yellow/10 flex items-center justify-center mr-4">
+                    <i class="fa fa-info-circle text-warning-yellow text-xl"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">黄色预警</p>
+                    <p class="text-2xl font-bold text-gray-800" id="yellowCount">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 预警列表 -->
+        <div class="mb-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">当前预警</h2>
+            <div id="warningList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- 预警卡片将通过JavaScript动态生成 -->
+                <div class="col-span-full text-center py-12 text-gray-500">
+                    <i class="fa fa-cloud text-5xl mb-4"></i>
+                    <p>暂无预警信息</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设置面板 (默认隐藏) -->
+        <div id="settingsPanel" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 transform scale-95 transition-transform duration-300">
+                <div class="flex justify-between items-center p-6 border-b">
+                    <h3 class="text-xl font-bold text-gray-800">设置</h3>
+                    <button id="closeSettings" class="text-gray-500 hover:text-gray-700">
+                        <i class="fa fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6">
+                    <!-- 地区管理 -->
+                    <div class="mb-6">
+                        <h4 class="text-lg font-medium text-gray-800 mb-3">关注地区</h4>
+                        <div id="regionList" class="mb-3">
+                            <!-- 地区列表将通过JavaScript动态生成 -->
+                        </div>
+                        <div class="flex">
+                            <input type="text" id="newRegion" placeholder="输入地区名称" class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button id="addRegion" class="bg-blue-600 text-white px-4 py-2 rounded-r-lg hover:bg-blue-700 transition-colors">
+                                <i class="fa fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 预警级别设置 -->
+                    <div class="mb-6">
+                        <h4 class="text-lg font-medium text-gray-800 mb-3">预警级别</h4>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="red" checked>
+                                <span class="ml-2 text-gray-700">红色预警</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="orange" checked>
+                                <span class="ml-2 text-gray-700">橙色预警</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="yellow" checked>
+                                <span class="ml-2 text-gray-700">黄色预警</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="blue" checked>
+                                <span class="ml-2 text-gray-700">蓝色预警</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 应急响应类型设置 -->
+                    <div class="mb-6">
+                        <h4 class="text-lg font-medium text-gray-800 mb-3">应急响应类型</h4>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="flood" checked>
+                                <span class="ml-2 text-gray-700">防汛/暴雨</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="drought" checked>
+                                <span class="ml-2 text-gray-700">防旱</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="typhoon" checked>
+                                <span class="ml-2 text-gray-700">防台风</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="cold" checked>
+                                <span class="ml-2 text-gray-700">防低温冰冻</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="heat" checked>
+                                <span class="ml-2 text-gray-700">防高温</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="fog" checked>
+                                <span class="ml-2 text-gray-700">防大雾</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="haze" checked>
+                                <span class="ml-2 text-gray-700">防灰霾</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="wind" checked>
+                                <span class="ml-2 text-gray-700">防海上大风</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="storm" checked>
+                                <span class="ml-2 text-gray-700">防风暴潮</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="wave" checked>
+                                <span class="ml-2 text-gray-700">防海浪</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="tsunami" checked>
+                                <span class="ml-2 text-gray-700">防海啸</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="geology" checked>
+                                <span class="ml-2 text-gray-700">防突发地质灾害</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="fire" checked>
+                                <span class="ml-2 text-gray-700">森林火灾</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="earthquake" checked>
+                                <span class="ml-2 text-gray-700">抗震救灾</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded" value="rescue" checked>
+                                <span class="ml-2 text-gray-700">自然灾害救助</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 刷新设置 -->
+                    <div class="mb-6">
+                        <h4 class="text-lg font-medium text-gray-800 mb-3">自动刷新</h4>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="autoRefresh" class="form-checkbox h-5 w-5 text-blue-600 rounded" checked>
+                            <label for="autoRefresh" class="ml-2 text-gray-700">开启自动刷新</label>
+                        </div>
+                        <div class="mt-3">
+                            <label class="block text-sm text-gray-700 mb-1">刷新间隔 (分钟)</label>
+                            <input type="number" id="refreshInterval" min="1" max="60" value="10" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6 border-t flex justify-end">
+                    <button id="saveSettings" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        保存设置
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 示例预警数据
+        const sampleWarnings = [
+            {
+                id: 1,
+                region: "广州市",
+                level: "red",
+                type: "flood",
+                title: "暴雨红色预警信号",
+                time: "2025-06-20 08:30:00",
+                content: "预计未来3小时内，广州市区将有大暴雨，降雨量将超过100毫米，请注意防范城市内涝和山洪地质灾害。"
+            },
+            {
+                id: 2,
+                region: "深圳市",
+                level: "orange",
+                type: "typhoon",
+                title: "台风橙色预警信号",
+                time: "2025-06-20 09:15:00",
+                content: "今年第5号台风“莲花”正以每小时20公里的速度向西北方向移动，预计将于明天早晨在广东沿海登陆，请注意防范台风带来的强风暴雨。"
+            },
+            {
+                id: 3,
+                region: "珠海市",
+                level: "yellow",
+                type: "heat",
+                title: "高温黄色预警信号",
+                time: "2025-06-20 10:00:00",
+                content: "预计未来三天，珠海市区最高气温将达到35℃以上，请注意做好防暑降温工作，避免长时间户外活动。"
+            },
+            {
+                id: 4,
+                region: "汕头市",
+                level: "blue",
+                type: "wind",
+                title: "海上大风蓝色预警信号",
+                time: "2025-06-20 11:45:00",
+                content: "预计未来24小时内，汕头附近海域将出现6-8级大风，请注意海上作业安全。"
+            }
+        ];
+
+        // DOM元素
+        const currentDateElement = document.getElementById('currentDate');
+        const warningListElement = document.getElementById('warningList');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const closeSettings = document.getElementById('closeSettings');
+        const saveSettings = document.getElementById('saveSettings');
+        const regionListElement = document.getElementById('regionList');
+        const newRegionInput = document.getElementById('newRegion');
+        const addRegionBtn = document.getElementById('addRegion');
+        const autoRefreshCheckbox = document.getElementById('autoRefresh');
+        const refreshIntervalInput = document.getElementById('refreshInterval');
+        const redCountElement = document.getElementById('redCount');
+        const orangeCountElement = document.getElementById('orangeCount');
+        const yellowCountElement = document.getElementById('yellowCount');
+
+        // 级别颜色映射
+        const levelColors = {
+            red: { bg: 'bg-warning-red/10', text: 'text-warning-red', border: 'border-warning-red/30' },
+            orange: { bg: 'bg-warning-orange/10', text: 'text-warning-orange', border: 'border-warning-orange/30' },
+            yellow: { bg: 'bg-warning-yellow/10', text: 'text-warning-yellow', border: 'border-warning-yellow/30' },
+            blue: { bg: 'bg-warning-blue/10', text: 'text-warning-blue', border: 'border-warning-blue/30' }
+        };
+
+        // 应急响应类型映射
+        const emergencyTypes = {
+            flood: { text: '防汛/暴雨', color: 'bg-emergency-flood text-white' },
+            drought: { text: '防旱', color: 'bg-emergency-drought text-white' },
+            typhoon: { text: '防台风', color: 'bg-emergency-typhoon text-white' },
+            cold: { text: '防低温冰冻', color: 'bg-emergency-cold text-white' },
+            heat: { text: '防高温', color: 'bg-emergency-heat text-white' },
+            fog: { text: '防大雾', color: 'bg-emergency-fog text-white' },
+            haze: { text: '防灰霾', color: 'bg-emergency-haze text-white' },
+            wind: { text: '防海上大风', color: 'bg-emergency-wind text-white' },
+            storm: { text: '防风暴潮', color: 'bg-emergency-storm text-white' },
+            wave: { text: '防海浪', color: 'bg-emergency-wave text-white' },
+            tsunami: { text: '防海啸', color: 'bg-emergency-tsunami text-white' },
+            geology: { text: '防突发地质灾害', color: 'bg-emergency-geology text-white' },
+            fire: { text: '森林火灾', color: 'bg-emergency-fire text-white' },
+            earthquake: { text: '抗震救灾', color: 'bg-emergency-earthquake text-white' },
+            rescue: { text: '自然灾害救助', color: 'bg-emergency-rescue text-white' }
+        };
+
+        // 级别文本映射
+        const levelTexts = {
+            red: '红色预警',
+            orange: '橙色预警',
+            yellow: '黄色预警',
+            blue: '蓝色预警'
+        };
+
+        // 初始化应用
+        function initApp() {
+            // 显示当前日期
+            updateCurrentDate();
+            
+            // 加载用户设置
+            loadSettings();
+            
+            // 加载预警数据
+            loadWarnings();
+            
+            // 设置自动刷新
+            setupAutoRefresh();
+            
+            // 绑定事件监听器
+            bindEventListeners();
+        }
+
+        // 更新当前日期显示
+        function updateCurrentDate() {
+            const now = new Date();
+            const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+            currentDateElement.textContent = now.toLocaleDateString('zh-CN', options);
+        }
+
+        // 加载用户设置
+        function loadSettings() {
+            // 从localStorage加载设置
+            const savedSettings = localStorage.getItem('weatherWarningSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                
+                // 加载关注地区
+                if (settings.regions && settings.regions.length > 0) {
+                    settings.regions.forEach(region => {
+                        addRegionToList(region);
+                    });
+                } else {
+                    // 默认添加一些地区
+                    addRegionToList('广州市');
+                    addRegionToList('深圳市');
+                    addRegionToList('珠海市');
+                }
+                
+                // 加载预警级别设置
+                const levelCheckboxes = document.querySelectorAll('input[type="checkbox"][value^="red"], input[type="checkbox"][value^="orange"], input[type="checkbox"][value^="yellow"], input[type="checkbox"][value^="blue"]');
+                levelCheckboxes.forEach(checkbox => {
+                    checkbox.checked = settings.levels ? settings.levels.includes(checkbox.value) : true;
+                });
+                
+                // 加载应急响应类型设置
+                const typeCheckboxes = document.querySelectorAll('input[type="checkbox"][value^="flood"], input[type="checkbox"][value^="drought"], input[type="checkbox"][value^="typhoon"], input[type="checkbox"][value^="cold"], input[type="checkbox"][value^="heat"], input[type="checkbox"][value^="fog"], input[type="checkbox"][value^="haze"], input[type="checkbox"][value^="wind"], input[type="checkbox"][value^="storm"], input[type="checkbox"][value^="wave"], input[type="checkbox"][value^="tsunami"], input[type="checkbox"][value^="geology"], input[type="checkbox"][value^="fire"], input[type="checkbox"][value^="earthquake"], input[type="checkbox"][value^="rescue"]');
+                typeCheckboxes.forEach(checkbox => {
+                    checkbox.checked = settings.types ? settings.types.includes(checkbox.value) : true;
+                });
+                
+                // 加载自动刷新设置
+                autoRefreshCheckbox.checked = settings.autoRefresh !== undefined ? settings.autoRefresh : true;
+                refreshIntervalInput.value = settings.refreshInterval || 10;
+            } else {
+                // 添加默认地区
+                addRegionToList('广州市');
+                addRegionToList('深圳市');
+                addRegionToList('珠海市');
+            }
+        }
+
+        // 添加地区到列表
+        function addRegionToList(region) {
+            const regionItem = document.createElement('div');
+            regionItem.className = 'flex items-center justify-between p-2 bg-gray-50 rounded-lg mb-2';
+            regionItem.innerHTML = `
+                <span class="text-gray-700">${region}</span>
+                <button class="text-gray-500 hover:text-gray-700 delete-region" data-region="${region}">
+                    <i class="fa fa-times"></i>
+                </button>
+            `;
+            regionListElement.appendChild(regionItem);
+            
+            // 为删除按钮添加事件监听器
+            const deleteButton = regionItem.querySelector('.delete-region');
+            deleteButton.addEventListener('click', function() {
+                regionItem.remove();
+                saveSettingsToStorage();
+            });
+        }
+
+        // 加载预警数据
+        function loadWarnings() {
+            // 这里应该从API获取数据，现在使用示例数据
+            const warnings = sampleWarnings;
+            
+            // 清空预警列表
+            warningListElement.innerHTML = '';
+            
+            // 如果没有预警数据
+            if (warnings.length === 0) {
+                warningListElement.innerHTML = `
+                    <div class="col-span-full text-center py-12 text-gray-500">
+                        <i class="fa fa-cloud text-5xl mb-4"></i>
+                        <p>暂无预警信息</p>
+                    </div>
+                `;
+                updateWarningCounts(0, 0, 0);
+                return;
+            }
+            
+            // 过滤符合条件的预警
+            const filteredWarnings = filterWarnings(warnings);
+            
+            // 更新预警统计
+            updateWarningCounts(
+                filteredWarnings.filter(w => w.level === 'red').length,
+                filteredWarnings.filter(w => w.level === 'orange').length,
+                filteredWarnings.filter(w => w.level === 'yellow').length
+            );
+            
+            // 如果没有符合条件的预警
+            if (filteredWarnings.length === 0) {
+                warningListElement.innerHTML = `
+                    <div class="col-span-full text-center py-12 text-gray-500">
+                        <i class="fa fa-check-circle text-5xl mb-4"></i>
+                        <p>你关注的地区暂无符合条件的预警信息</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 按级别排序（红、橙、黄、蓝）
+            const levelOrder = { red: 1, orange: 2, yellow: 3, blue: 4 };
+            filteredWarnings.sort((a, b) => levelOrder[a.level] - levelOrder[b.level]);
+            
+            // 渲染预警卡片
+            filteredWarnings.forEach(warning => {
+                const warningCard = createWarningCard(warning);
+                warningListElement.appendChild(warningCard);
+            });
+        }
+
+        // 过滤预警数据
+        function filterWarnings(warnings) {
+            // 获取用户设置
+            const savedSettings = localStorage.getItem('weatherWarningSettings');
+            const settings = savedSettings ? JSON.parse(savedSettings) : {};
+            
+            // 获取关注的地区
+            const regions = Array.from(regionListElement.querySelectorAll('.delete-region'))
+                .map(el => el.getAttribute('data-region'));
+            
+            // 获取选中的级别
+            const selectedLevels = Array.from(document.querySelectorAll('input[type="checkbox"][value^="red"], input[type="checkbox"][value^="orange"], input[type="checkbox"][value^="yellow"], input[type="checkbox"][value^="blue"]:checked'))
+                .map(checkbox => checkbox.value);
+            
+            // 获取选中的应急响应类型
+            const selectedTypes = Array.from(document.querySelectorAll('input[type="checkbox"][value^="flood"], input[type="checkbox"][value^="drought"], input[type="checkbox"][value^="typhoon"], input[type="checkbox"][value^="cold"], input[type="checkbox"][value^="heat"], input[type="checkbox"][value^="fog"], input[type="checkbox"][value^="haze"], input[type="checkbox"][value^="wind"], input[type="checkbox"][value^="storm"], input[type="checkbox"][value^="wave"], input[type="checkbox"][value^="tsunami"], input[type="checkbox"][value^="geology"], input[type="checkbox"][value^="fire"], input[type="checkbox"][value^="earthquake"], input[type="checkbox"][value^="rescue"]:checked'))
+                .map(checkbox => checkbox.value);
+            
+            // 过滤预警
+            return warnings.filter(warning => {
+                // 检查地区
+                if (regions.length > 0 && !regions.includes(warning.region)) {
+                    return false;
+                }
+                
+                // 检查级别
+                if (selectedLevels.length > 0 && !selectedLevels.includes(warning.level)) {
+                    return false;
+                }
+                
+                // 检查应急响应类型
+                if (selectedTypes.length > 0 && !selectedTypes.includes(warning.type)) {
+                    return false;
+                }
+                
+                // 检查日期（确保只显示当天的预警）
+                const warningDate = new Date(warning.time).toDateString();
+                const today = new Date().toDateString();
+                if (warningDate !== today) {
+                    return false;
+                }
+                
+                return true;
+            });
+        }
+
+        // 创建预警卡片
+        function createWarningCard(warning) {
+            const levelColor = levelColors[warning.level];
+            const emergencyType = emergencyTypes[warning.type];
+            const levelText = levelTexts[warning.level];
+            
+            const card = document.createElement('div');
+            card.className = `warning-card ${levelColor.bg} ${levelColor.border} fade-in`;
+            card.setAttribute('data-id', warning.id);
+            
+            // 格式化时间
+            const warningTime = new Date(warning.time);
+            const formattedTime = warningTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <span class="emergency-badge ${emergencyType.color}">${emergencyType.text}</span>
+                        <span class="warning-level-badge ${levelColor.bg} ${levelColor.text}">${levelText}</span>
+                    </div>
+                    <span class="text-sm text-gray-500">${formattedTime}</span>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">${warning.region}${warning.title}</h3>
+                <p class="text-gray-600 text-sm mb-3">${warning.content}</p>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-gray-500">预警发布时间</span>
+                    <button class="text-xs text-blue-500 hover:text-blue-700 view-details">查看详情</button>
+                </div>
+            `;
+            
+            // 为查看详情按钮添加事件监听器
+            const viewDetailsBtn = card.querySelector('.view-details');
+            viewDetailsBtn.addEventListener('click', function() {
+                showWarningDetails(warning);
+            });
+            
+            return card;
+        }
+
+        // 显示预警详情
+        function showWarningDetails(warning) {
+            // 创建模态框
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center';
+            
+            const modalContent = document.createElement('div');
+            modalContent.className = 'bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden';
+            
+            const levelColor = levelColors[warning.level];
+            const emergencyType = emergencyTypes[warning.type];
+            const levelText = levelTexts[warning.level];
+            
+            // 格式化时间
+            const warningTime = new Date(warning.time);
+            const formattedDate = warningTime.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+            const formattedTime = warningTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            
+            modalContent.innerHTML = `
+                <div class="bg-gradient-to-r ${levelColor.text} ${levelColor.bg} p-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="emergency-badge ${emergencyType.color}">${emergencyType.text}</span>
+                            <span class="warning-level-badge ${levelColor.bg} ${levelColor.text} ml-2">${levelText}</span>
+                        </div>
+                        <button class="close-modal text-gray-500 hover:text-gray-700">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mt-4">${warning.region}${warning.title}</h3>
+                    <p class="text-gray-600 text-sm mt-2">发布时间: ${formattedDate} ${formattedTime}</p>
+                </div>
+                <div class="p-6">
+                    <h4 class="font-medium text-gray-800 mb-2">预警详情</h4>
+                    <p class="text-gray-600 mb-4">${warning.content}</p>
+                    
+                    <h4 class="font-medium text-gray-800 mb-2">防御指南</h4>
+                    <ul class="text-gray-600 space-y-2 mb-4">
+                        ${getDefenseGuidelines(warning.type, warning.level)}
+                    </ul>
+                    
+                    <div class="flex justify-between items-center">
+                        <button class="share-warning text-sm text-blue-500 hover:text-blue-700">
+                            <i class="fa fa-share-alt mr-1"></i> 分享预警
+                        </button>
+                        <button class="set-reminder text-sm text-blue-500 hover:text-blue-700">
+                            <i class="fa fa-bell mr-1"></i> 设置提醒
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+            
+            // 关闭模态框
+            const closeModalBtn = modal.querySelector('.close-modal');
+            closeModalBtn.addEventListener('click', function() {
+                modal.remove();
+            });
+            
+            // 点击模态框外部关闭
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+            
+            // 分享预警
+            const shareBtn = modal.querySelector('.share-warning');
+            shareBtn.addEventListener('click', function() {
+                alert('分享功能已复制到剪贴板！');
+            });
+            
+            // 设置提醒
+            const reminderBtn = modal.querySelector('.set-reminder');
+            reminderBtn.addEventListener('click', function() {
+                alert('提醒已设置！');
+            });
+        }
+
+        // 获取防御指南
+        function getDefenseGuidelines(type, level) {
+            // 根据预警类型和级别返回相应的防御指南
+            const guidelines = {
+                flood: {
+                    red: `
+                        <li>政府及相关部门按照职责做好防暴雨应急和抢险工作；</li>
+                        <li>停止集会、停课、停业（除特殊行业外）；</li>
+                        <li>做好山洪、滑坡、泥石流等灾害的防御和抢险工作。`
+                },
+                typhoon: {
+                    orange: `
+                        <li>政府及相关部门按照职责做好防台风抢险应急工作；</li>
+                        <li>停止室内外大型集会、停课、停业（除特殊行业外）；</li>
+                        <li>相关水域水上作业和过往船舶应当回港避风，加固港口设施，防止船舶走锚、搁浅和碰撞；</li>
+                        <li>加固或者拆除易被风吹动的搭建物,人员应当尽可能待在防风安全的地方；</li>
+                        <li>相关地区应当注意防范强降水可能引发的山洪、地质灾害。`
+                },
+                heat: {
+                    yellow: `
+                        <li>有关部门和单位按照职责做好防暑降温准备工作；</li>
+                        <li>午后尽量减少户外活动；</li>
+                        <li>对老、弱、病、幼人群提供防暑降温指导；</li>
+                        <li>高温条件下作业和白天需要长时间进行户外露天作业的人员应当采取必要的防护措施。`
+                },
+                wind: {
+                    blue: `
+                        <li>政府及相关部门按照职责做好防大风工作；</li>
+                        <li>关好门窗，加固围板、棚架、广告牌等易被风吹动的搭建物，妥善安置易受大风影响的室外物品，遮盖建筑物资；</li>
+                        <li>相关水域水上作业和过往船舶采取积极的应对措施，如回港避风或者绕道航行等；</li>
+                        <li>行人注意尽量少骑自行车，刮风时不要在广告牌、临时搭建物等下面逗留；</li>
+                        <li>有关部门和单位注意森林、草原等防火。`
+                }
+            };
+            
+            // 返回相应的防御指南，如果没有找到则返回通用指南
+            return guidelines[type] && guidelines[type][level] ? guidelines[type][level] : `
+                <li>政府及相关部门按照职责做好应对工作；</li>
+                <li>市民请关注最新天气预报，采取防御措施；</li>
+                <li>检查并确保门窗、围板、棚架等易被风吹动的搭建物牢固；</li>
+                <li>外出时尽量避开危险区域，注意安全。`;
+        }
+
+        // 更新预警统计
+        function updateWarningCounts(redCount, orangeCount, yellowCount) {
+            redCountElement.textContent = redCount;
+            orangeCountElement.textContent = orangeCount;
+            yellowCountElement.textContent = yellowCount;
+        }
+
+        // 设置自动刷新
+        function setupAutoRefresh() {
+            const savedSettings = localStorage.getItem('weatherWarningSettings');
+            const settings = savedSettings ? JSON.parse(savedSettings) : {};
+            
+            if (settings.autoRefresh) {
+                const interval = (settings.refreshInterval || 10) * 60 * 1000; // 转换为毫秒
+                setInterval(loadWarnings, interval);
+            }
+        }
+
+        // 保存设置到本地存储
+        function saveSettingsToStorage() {
+            // 获取关注的地区
+            const regions = Array.from(regionListElement.querySelectorAll('.delete-region'))
+                .map(el => el.getAttribute('data-region'));
+            
+            // 获取选中的级别
+            const levels = Array.from(document.querySelectorAll('input[type="checkbox"][value^="red"], input[type="checkbox"][value^="orange"], input[type="checkbox"][value^="yellow"], input[type="checkbox"][value^="blue"]:checked'))
+                .map(checkbox => checkbox.value);
+            
+            // 获取选中的应急响应类型
+            const types = Array.from(document.querySelectorAll('input[type="checkbox"][value^="flood"], input[type="checkbox"][value^="drought"], input[type="checkbox"][value^="typhoon"], input[type="checkbox"][value^="cold"], input[type="checkbox"][value^="heat"], input[type="checkbox"][value^="fog"], input[type="checkbox"][value^="haze"], input[type="checkbox"][value^="wind"], input[type="checkbox"][value^="storm"], input[type="checkbox"][value^="wave"], input[type="checkbox"][value^="tsunami"], input[type="checkbox"][value^="geology"], input[type="checkbox"][value^="fire"], input[type="checkbox"][value^="earthquake"], input[type="checkbox"][value^="rescue"]:checked'))
+                .map(checkbox => checkbox.value);
+            
+            // 获取自动刷新设置
+            const autoRefresh = autoRefreshCheckbox.checked;
+            const refreshInterval = parseInt(refreshIntervalInput.value) || 10;
+            
+            // 保存设置
+            const settings = {
+                regions,
+                levels,
+                types,
+                autoRefresh,
+                refreshInterval
+            };
+            
+            localStorage.setItem('weatherWarningSettings', JSON.stringify(settings));
+        }
+
+        // 绑定事件监听器
+        function bindEventListeners() {
+            // 设置按钮
+            settingsBtn.addEventListener('click', function() {
+                settingsPanel.classList.remove('opacity-0', 'pointer-events-none');
+                settingsPanel.querySelector('div').classList.remove('scale-95');
+                settingsPanel.querySelector('div').classList.add('scale-100');
+            });
+            
+            // 关闭设置面板
+            closeSettings.addEventListener('click', function() {
+                settingsPanel.classList.add('opacity-0', 'pointer-events-none');
+                settingsPanel.querySelector('div').classList.remove('scale-100');
+                settingsPanel.querySelector('div').classList.add('scale-95');
+            });
+            
+            // 点击设置面板外部关闭
+            settingsPanel.addEventListener('click', function(e) {
+                if (e.target === settingsPanel) {
+                    settingsPanel.classList.add('opacity-0', 'pointer-events-none');
+                    settingsPanel.querySelector('div').classList.remove('scale-100');
+                    settingsPanel.querySelector('div').classList.add('scale-95');
+                }
+            });
+            
+            // 保存设置
+            saveSettings.addEventListener('click', function() {
+                saveSettingsToStorage();
+                settingsPanel.classList.add('opacity-0', 'pointer-events-none');
+                settingsPanel.querySelector('div').classList.remove('scale-100');
+                settingsPanel.querySelector('div').classList.add('scale-95');
+                
+                // 重新加载预警数据
+                loadWarnings();
+                
+                alert('设置已保存！');
+            });
+            
+            // 添加地区
+            addRegionBtn.addEventListener('click', function() {
+                const region = newRegionInput.value.trim();
+                if (region) {
+                    // 检查是否已存在
+                    const existingRegions = Array.from(regionListElement.querySelectorAll('.delete-region'))
+                        .map(el => el.getAttribute('data-region'));
+                    
+                    if (!existingRegions.includes(region)) {
+                        addRegionToList(region);
+                        saveSettingsToStorage();
+                        newRegionInput.value = '';
+                    } else {
+                        alert('该地区已在关注列表中！');
+                    }
+                }
+            });
+            
+            // 回车键添加地区
+            newRegionInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addRegionBtn.click();
+                }
+            });
+            
+            // 监听自动刷新设置变化
+            autoRefreshCheckbox.addEventListener('change', function() {
+                saveSettingsToStorage();
+            });
+            
+            // 监听刷新间隔设置变化
+            refreshIntervalInput.addEventListener('change', function() {
+                saveSettingsToStorage();
+            });
+        }
+
+        // 启动应用
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
+    
